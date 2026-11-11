@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Machine à écrire</title>
+<style>
+@font-face{font-family:Elite;src:url(fonts/special-elite-latin-400-normal.woff2) format("woff2")}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1350px;overflow:hidden}
+body{position:relative;font-family:Elite,monospace;
+  background:
+   radial-gradient(ellipse at 28% 18%,rgba(255,196,120,.20) 0%,transparent 55%),
+   repeating-linear-gradient(92deg,rgba(0,0,0,.20) 0 2px,transparent 2px 9px,rgba(255,255,255,.025) 9px 10px,transparent 10px 23px),
+   linear-gradient(180deg,#3a2417,#22140c)}
+.shadow{position:absolute;left:118px;top:205px;width:860px;height:990px;transform:rotate(-2.4deg);
+  background:#000;filter:blur(38px);opacity:.75}
+.paper{position:absolute;left:110px;top:170px;width:860px;height:1000px;transform:rotate(-3deg);
+  background:
+   radial-gradient(ellipse at 20% 12%,rgba(255,255,255,.55) 0%,transparent 55%),
+   radial-gradient(ellipse at 88% 96%,rgba(140,95,40,.30) 0%,transparent 45%),
+   linear-gradient(175deg,#f1e6cd,#e2d2b0);
+  clip-path:polygon(0 1.2%,4% .3%,9% 1.5%,15% .2%,22% 1.3%,29% .4%,36% 1.6%,44% .3%,51% 1.2%,58% .2%,66% 1.5%,73% .5%,80% 1.4%,87% .2%,94% 1.3%,100% .5%,100% 100%,0 100%);
+  padding:150px 92px 0 100px;color:#1d1a17}
+.paper:before{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(90,60,25,.16),transparent 6%,transparent 94%,rgba(90,60,25,.18)),
+             linear-gradient(180deg,transparent 49.6%,rgba(90,60,25,.16) 50%,transparent 50.6%)}
+.fib{position:absolute;inset:0;width:100%;height:100%;opacity:.5;mix-blend-mode:multiply}
+.head{position:relative;font-size:27px;letter-spacing:5px;color:#7a2a20;opacity:.85;margin-bottom:92px}
+.msg{position:relative;font-size:83px;line-height:1.36;filter:url(#ink);
+  text-shadow:0 0 1px rgba(29,26,23,.7)}
+.msg b{font-weight:400;color:#8b2318}
+.rule{position:relative;margin-top:86px;width:150px;height:5px;background:#8b2318;opacity:.8;filter:url(#ink)}
+.foot{position:absolute;right:92px;bottom:74px;font-size:27px;letter-spacing:4px;opacity:.55}
+.stain{position:absolute;right:70px;top:90px;width:190px;height:190px;border-radius:50%;
+  border:9px solid rgba(120,75,30,.20);box-shadow:inset 0 0 22px rgba(120,75,30,.10);transform:scale(1,.94)}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.20;mix-blend-mode:overlay}
+.vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 45% 42%,transparent 48%,rgba(0,0,0,.68) 100%)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="ink" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="9" result="f"/>
+    <feColorMatrix in="f" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.55" result="m"/>
+    <feComposite in="d" in2="m" operator="in"/>
+  </filter>
+  <filter id="paperfib"><feTurbulence type="fractalNoise" baseFrequency=".02 .6" numOctaves="3" seed="2"/>
+    <feColorMatrix values="0 0 0 0 .45  0 0 0 0 .33  0 0 0 0 .18  0 0 0 .55 -.12"/></filter>
+</svg>
+<div class="shadow"></div>
+<div class="paper">
+  <svg class="fib"><rect width="100%" height="100%" filter="url(#paperfib)"/></svg>
+  <div class="stain"></div>
+  <div class="head">N° 001</div>
+  <div class="msg" id="msg">La mort n'est pas seulement physique elle est aussi intellectuelle.</div>
+  <div class="rule"></div>
+  <div class="foot">— fin —</div>
+</div>
+<svg class="grain" width="1080" height="1350"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .9 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+<div class="vig"></div>
+<script>
+// ?t=Votre phrase -> remplace le texte
+const t=new URLSearchParams(location.search).get('t');
+if(t)document.getElementById('msg').textContent=t;
+</script>
+</body>
+</html>
