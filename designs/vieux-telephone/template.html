@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Vieux téléphone</title>
+<style>
+@font-face{font-family:Pix;font-weight:500;src:url(fonts/pixelify-sans-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Pix;font-weight:700;src:url(fonts/pixelify-sans-latin-700-normal.woff2) format("woff2")}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1350px;overflow:hidden}
+body{background:radial-gradient(ellipse at 30% 20%,#2a1620 0%,#0b0709 55%,#000 100%);position:relative;font-family:Pix,monospace}
+.glow{position:absolute;left:50%;top:44%;width:1100px;height:1100px;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(150,235,190,.20) 0%,rgba(150,235,190,.06) 40%,transparent 68%)}
+.phone{position:absolute;left:50%;top:70px;width:900px;height:1700px;margin-left:-450px;
+  transform:rotate(-5deg);transform-origin:50% 40%;
+  border-radius:150px 150px 120px 120px;
+  background:linear-gradient(100deg,#0c0d10 0%,#25272d 14%,#17181c 50%,#1f2126 86%,#08080a 100%);
+  box-shadow:0 0 0 3px #000,inset 0 4px 3px rgba(255,255,255,.18),inset 0 0 60px rgba(0,0,0,.8),0 60px 140px rgba(0,0,0,.9)}
+.speaker{position:absolute;left:50%;top:78px;width:230px;height:22px;margin-left:-115px;border-radius:12px;
+  background:#050506;box-shadow:inset 0 3px 5px #000,0 2px 1px rgba(255,255,255,.14)}
+.speaker:after{content:"";position:absolute;inset:6px 14px;border-radius:6px;
+  background:repeating-linear-gradient(90deg,#2b2d33 0 5px,#050506 5px 10px)}
+.bezel{position:absolute;left:70px;right:70px;top:150px;height:900px;border-radius:54px 54px 90px 90px;
+  background:linear-gradient(180deg,#050506,#0e0f12);
+  box-shadow:inset 0 0 0 3px #000,inset 0 6px 22px #000,0 2px 1px rgba(255,255,255,.12)}
+.lcd{position:absolute;left:44px;right:44px;top:44px;bottom:70px;border-radius:10px;overflow:hidden;
+  background:linear-gradient(170deg,#c4f3d9 0%,#a9e8c9 55%,#93dcb9 100%);
+  box-shadow:0 0 70px rgba(150,240,195,.45),inset 0 0 50px rgba(20,70,50,.45);
+  color:#10231b;display:flex;flex-direction:column}
+.lcd:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:
+   repeating-linear-gradient(0deg,rgba(10,50,35,.13) 0 1px,transparent 1px 5px),
+   repeating-linear-gradient(90deg,rgba(10,50,35,.13) 0 1px,transparent 1px 5px)}
+.lcd:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:linear-gradient(118deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,.06) 24%,transparent 38%)}
+.status{display:flex;align-items:center;justify-content:space-between;padding:20px 30px 16px;
+  border-bottom:5px solid #10231b;font-weight:700;font-size:40px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:44px}
+.bars i{width:10px;background:#10231b}
+.bars i:nth-child(1){height:12px}.bars i:nth-child(2){height:22px}.bars i:nth-child(3){height:33px}.bars i:nth-child(4){height:44px}
+.left{display:flex;align-items:center;gap:22px}
+.mail{width:56px;height:38px;border:5px solid #10231b;position:relative}
+.mail:before,.mail:after{content:"";position:absolute;top:8px;width:27px;height:5px;background:#10231b}
+.mail:before{left:-3px;transform:rotate(32deg)}.mail:after{right:-3px;transform:rotate(-32deg)}
+.batt{width:74px;height:36px;border:5px solid #10231b;position:relative;padding:4px;display:flex;gap:4px}
+.batt:before{content:"";position:absolute;left:-13px;top:6px;width:8px;height:14px;background:#10231b}
+.batt i{flex:1;background:#10231b}
+.msg{flex:1;padding:44px 34px 0;font-weight:700;font-size:79px;line-height:1.16;letter-spacing:.5px;
+  text-shadow:4px 4px 0 rgba(16,35,27,.16)}
+.cur{display:inline-block;width:26px;height:68px;background:#10231b;vertical-align:-10px;margin-left:8px}
+.soft{display:flex;justify-content:space-between;padding:14px 30px 20px;border-top:5px solid #10231b;
+  font-weight:700;font-size:46px}
+.keys{position:absolute;left:0;right:0;top:1085px;height:420px}
+.nav{position:absolute;left:50%;top:10px;width:250px;height:170px;margin-left:-125px;border-radius:44px;
+  background:linear-gradient(180deg,#3a3d44,#15161a);box-shadow:inset 0 3px 2px rgba(255,255,255,.25),0 8px 18px #000}
+.nav:after{content:"";position:absolute;inset:34px 46px;border-radius:26px;background:linear-gradient(180deg,#0b0b0d,#24262b);
+  box-shadow:inset 0 3px 8px #000}
+.sk{position:absolute;top:30px;width:190px;height:100px;border-radius:30px;
+  background:linear-gradient(180deg,#26282e,#0f1013);box-shadow:inset 0 3px 2px rgba(255,255,255,.16),0 8px 16px #000}
+.sk:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:12px;margin:-6px 0 0 -35px;border-radius:6px;background:#cfd6e4;opacity:.85}
+.sk.l{left:95px;transform:rotate(6deg)}.sk.r{right:95px;transform:rotate(-6deg)}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:overlay}
+.vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,transparent 45%,rgba(0,0,0,.72) 100%)}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="phone">
+  <div class="speaker"></div>
+  <div class="bezel">
+    <div class="lcd">
+      <div class="status">
+        <div class="left"><div class="bars"><i></i><i></i><i></i><i></i></div><div class="mail"></div></div>
+        <div>Message</div>
+        <div class="batt"><i></i><i></i><i></i></div>
+      </div>
+      <div class="msg" id="msg">La mort n'est pas seulement physique, elle est aussi intellectuelle.<span class="cur"></span></div>
+      <div class="soft"><span>Options</span><span>Effacer</span></div>
+    </div>
+  </div>
+  <div class="keys"><div class="sk l"></div><div class="nav"></div><div class="sk r"></div></div>
+</div>
+<svg class="grain" width="1080" height="1350"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .9 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+<div class="vig"></div>
+<script>
+// ?t=Votre phrase  -> remplace le texte
+const t=new URLSearchParams(location.search).get('t');
+if(t){const m=document.getElementById('msg');m.firstChild.textContent=t;}
+</script>
+</body>
+</html>
