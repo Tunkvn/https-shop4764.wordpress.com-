@@ -1,5 +1,5 @@
 {
-  // Cloudflare : publie le dossier "public" comme site statique
+  // Cloudflare : publie le dossier "public" comme site statique (branche de production : celle-ci)
   "name": "tableau",
   "compatibility_date": "2026-06-01",
   "assets": { "directory": "./public" }
