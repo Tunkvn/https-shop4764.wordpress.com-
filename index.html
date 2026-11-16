@@ -755,7 +755,8 @@ function getPos() {
 function showWx(w, stale) {
   const i = wxInfo(w.code), r = n => (n > 0 ? '+' : '') + Math.round(n) + '°';
   $('#weather').innerHTML = `<div class="ico">${i[0]}</div><div style="flex:1"><div class="temp">${r(w.t)} <span class="sub">ressenti ${r(w.f)}</span></div>
-    <div class="sub">${esc(w.place || 'Krasnoyarsk')} · ${i[1]}${stale ? ' · mesure de ' + new Date(w.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></div>
+    <div class="sub">${esc(w.place || 'Krasnoyarsk')} · ${i[1]}${stale ? ' · mesure de ' + new Date(w.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+    <a class="sub" style="text-decoration:underline" lang="ru" target="_blank" rel="noopener" href="https://yandex.ru/pogoda/?lat=${encodeURIComponent(w.lat || 56.01)}&lon=${encodeURIComponent(w.lon || 92.87)}">Яндекс Погода ↗</a></div>
     ${stale ? '<button type="button" class="ib" data-a="meteo" aria-label="Réessayer">↻</button>' : ''}${geoBtn()}`;
 }
 async function weather(force) {
@@ -775,7 +776,7 @@ async function weather(force) {
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,apparent_temperature,weather_code&timezone=auto', { signal: ctl.signal });
     clearTimeout(to); if (!res.ok) throw 0;
-    const c = (await res.json()).current, w = { t: c.temperature_2m, f: c.apparent_temperature, code: c.weather_code, at: Date.now(), place, geo: place !== 'Krasnoyarsk' };
+    const c = (await res.json()).current, w = { t: c.temperature_2m, f: c.apparent_temperature, code: c.weather_code, at: Date.now(), place, geo: place !== 'Krasnoyarsk', lat, lon };
     if (typeof w.t !== 'number') throw 0;
     if (w.geo === geoOn()) { try { localStorage.setItem(WKEY, JSON.stringify(w)); } catch (e) {} }
     showWx(w, false);
