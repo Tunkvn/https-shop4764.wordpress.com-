@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.open-meteo.com; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="theme-color" content="#0F172A">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Mon tableau de bord</title>
@@ -119,7 +121,7 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
 label.tick{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;min-height:40px}
 
 /* Champs */
-input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
+input[type=text],input[type=password],input[type=number],input[type=date],input[type=time],select,textarea{
   width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:48px;outline:none;color-scheme:dark}
 input:focus,select:focus,textarea:focus{border-color:var(--green)}
 textarea{min-height:84px;resize:vertical}
@@ -161,10 +163,24 @@ nav.bottom svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
   background:#F1F5F9;color:#0F172A;font-weight:600;font-size:14px;padding:10px 16px;border-radius:12px;opacity:0;
   transition:.25s;z-index:60;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%)}
+body.locked header.top,body.locked main,body.locked nav.bottom{display:none}
+#lock{display:none;min-height:100vh;max-width:380px;margin:0 auto;flex-direction:column;justify-content:center;gap:14px;text-align:center}
+body.locked #lock{display:flex}
+#lock .ico{font-size:44px} #lock input{text-align:center;font-size:22px;letter-spacing:.2em}
+#lockMsg{min-height:20px;font-size:14px;color:#FCA5A5}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<form id="lock" autocomplete="off">
+  <div class="ico">🔒</div>
+  <h2>Tableau de bord verrouillé</h2>
+  <input type="password" id="lockIn" placeholder="Ton code" autocomplete="off" aria-label="Code" required>
+  <div id="lockMsg"></div>
+  <button type="submit" class="btn green full" id="lockBtn">Ouvrir</button>
+  <button type="button" class="link" id="lockForgot">Code oublié ?</button>
+</form>
 
 <header class="top">
   <div class="date" id="hDate"></div>
@@ -282,9 +298,8 @@ function seed() {
 
 /* ============ Stockage ============ */
 let S, wk, flash = null;
-function load() {
-  try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
-  if (!S || !Array.isArray(S.tasks)) S = seed();
+function load(data) {
+  S = (data && Array.isArray(data.tasks)) ? data : seed();
   S = Object.assign(seed0(), S); fixGardes();
 }
 function fixGardes() { S.gardes = S.gardes.map(g => typeof g === 'string' ? { date: g, start: '17:00', end: '08:00' } : g); }
@@ -292,7 +307,65 @@ function seed0() { // valeurs par défaut pour un fichier restauré incomplet
   return { tasks: [], courses: [], gardes: [], sundayGarde: true, gardeSkip: [], hw: [], activities: [], words: [], sugg: { date: '', off: 0 },
     habits: [], log: {}, phoneGoal: 120, wins: {}, goals: [], debt: { initial: 0, remaining: 0, monthly: 0, paid: {} }, hide24: false, budgetOn: false, expenses: [] };
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Impossible d\'enregistrer (mémoire pleine ?)'); } }
+let saveQ = Promise.resolve();
+function save() {
+  const txt = JSON.stringify(S), fail = () => toast('Impossible d\'enregistrer (mémoire pleine ?)');
+  if (!ckey) { try { localStorage.setItem(KEY, txt); } catch (e) { fail(); } return; }
+  saveQ = saveQ.then(async () => { try { localStorage.setItem(KEY, await encrypt(txt)); } catch (e) { fail(); } });
+}
+
+/* ============ Verrou : les données sont chiffrées avec ton code (AES-256) ============ */
+let ckey = null, cmeta = null; // clé en mémoire seulement, jamais enregistrée
+const canLock = !!(window.crypto && crypto.subtle);
+const b64 = u => { let x = ''; for (const c of u) x += String.fromCharCode(c); return btoa(x); };
+const unb64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+async function deriveKey(code, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: unb64(salt), iterations: Math.min(Number(iter) || 1, 2e6), hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encrypt(txt) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, ckey, new TextEncoder().encode(txt)));
+  return JSON.stringify({ enc: 1, salt: cmeta.salt, iter: cmeta.iter, iv: b64(iv), ct: b64(ct) });
+}
+async function decrypt(rec, key) {
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(rec.iv) }, key, unb64(rec.ct))));
+}
+async function setCode(code) {
+  const meta = { salt: b64(crypto.getRandomValues(new Uint8Array(16))), iter: 300000 };
+  const k = await deriveKey(code, meta.salt, meta.iter);
+  await saveQ; ckey = k; cmeta = meta; save(); render(); toast('Code activé. Tes données sont chiffrées.');
+}
+function codeForm() {
+  openForm({ title: ckey ? 'Changer le code' : 'Protéger par un code', saveLabel: 'Activer', fields: [
+    { key: 'code', label: 'Nouveau code (4 caractères minimum, chiffres ou lettres)', type: 'password' },
+    { key: 'code2', label: 'Répète le code', type: 'password' },
+    { type: 'info', html: 'Un code plus long protège mieux (8 caractères ou plus, c\'est bien).<br><b style="color:#FCA5A5">Attention : si tu oublies ce code, personne ne peut récupérer tes données, même pas moi.</b>' }],
+    onSave: v => {
+      if (v.code.length < 4) { toast('Le code doit avoir au moins 4 caractères.'); return false; }
+      if (v.code !== v.code2) { toast('Les deux codes ne sont pas pareils.'); return false; }
+      setCode(v.code).catch(() => toast('Impossible d\'activer le code.'));
+    } });
+}
+function showLock(rec) {
+  const inp = $('#lockIn'), msg = $('#lockMsg'), btn = $('#lockBtn');
+  if (!canLock) { msg.textContent = 'Ce navigateur ne peut pas déchiffrer ici. Ouvre la page en ligne (https).'; return; }
+  inp.focus();
+  $('#lock').addEventListener('submit', async e => {
+    e.preventDefault(); if (btn.disabled) return;
+    btn.disabled = true; msg.textContent = ''; btn.textContent = 'Vérification…';
+    try {
+      const k = await deriveKey(inp.value, rec.salt, rec.iter), data = await decrypt(rec, k);
+      ckey = k; cmeta = { salt: rec.salt, iter: rec.iter }; inp.value = ''; load(data); start();
+    } catch (x) { msg.textContent = 'Code incorrect.'; inp.value = ''; inp.focus(); }
+    btn.disabled = false; btn.textContent = 'Ouvrir';
+  });
+  $('#lockForgot').addEventListener('click', () => {
+    if (confirm('Sans le code, les données sont illisibles.\n\nLa seule solution est de TOUT EFFACER sur ce téléphone et de recommencer (tu pourras ensuite restaurer une sauvegarde).\n\nTout effacer ?') && confirm('Vraiment tout effacer ? C\'est définitif.')) {
+      try { localStorage.removeItem(KEY); } catch (x) {} location.reload();
+    }
+  });
+}
 function rollover() {
   const t = today();
   S.tasks.forEach(k => { if (!k.done && k.date < t) { k.date = t; k.carried = true; } });
@@ -483,6 +556,9 @@ function render() {
   el('#s-data', `<div class="sh"><h2>Mes données</h2></div>
     <div class="card"><p class="muted small" style="margin-bottom:12px">Tout est enregistré dans ce navigateur, sur ce téléphone. Fais une sauvegarde de temps en temps.</p>
       <div class="row"><button type="button" class="btn green" data-a="export">⬇ Sauvegarde</button><button type="button" class="btn" data-a="import">⬆ Restaurer</button></div>
+      <p class="small" style="margin:14px 0 10px;color:${ckey ? '#6EE7B7' : 'var(--muted)'}">${ckey ? '🔒 Protégé par un code. Données et sauvegardes chiffrées. Verrouillage automatique après 2 minutes hors de la page.' : '🔓 Pas de code. Quelqu\'un qui prend ton téléphone peut lire la page.'}</p>
+      <div class="row">${ckey ? '<button type="button" class="btn" data-a="lockNow">Verrouiller</button><button type="button" class="btn ghost" data-a="codeSet">Changer le code</button><button type="button" class="btn ghost" data-a="codeOff">Retirer le code</button>'
+        : canLock ? '<button type="button" class="btn" data-a="codeSet">🔒 Protéger par un code</button>' : '<span class="muted small">Le code marche seulement quand la page est en ligne (https).</span>'}</div>
       <button type="button" class="link" data-a="nameEdit">Changer mon prénom</button>
       ${S.examples ? '<button type="button" class="link" data-a="clearEx">Effacer les exemples (tâches, devoirs, victoires, historique)</button>' : ''}</div>`);
 
@@ -500,7 +576,7 @@ function openForm({ title, fields, onSave, onDelete, saveLabel }) {
     const lab = `<label class="f" for="f_${f.key}">${esc(f.label)}</label>`;
     if (f.type === 'select') return lab + `<select id="f_${f.key}" name="${f.key}">${f.options.map(o => `<option value="${esc(o[0])}" ${o[0] === f.value ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
     if (f.type === 'textarea') return lab + `<textarea id="f_${f.key}" name="${f.key}">${esc(f.value)}</textarea>`;
-    return lab + `<input id="f_${f.key}" type="${f.type || 'text'}" name="${f.key}" value="${esc(f.value ?? '')}" ${f.required ? 'required' : ''} ${f.type === 'number' ? 'inputmode="numeric" min="0" step="any"' : ''} ${f.lang ? `lang="${f.lang}"` : ''}>`;
+    return lab + `<input id="f_${f.key}" type="${f.type || 'text'}" name="${f.key}" value="${esc(f.value ?? '')}" ${f.required ? 'required' : ''} ${f.type === 'number' ? 'inputmode="numeric" min="0" step="any"' : ''} ${f.type === 'password' ? 'autocomplete="new-password" required' : ''} ${f.lang ? `lang="${f.lang}"` : ''}>`;
   }).join('') + `<div class="acts">${onDelete ? '<button type="button" class="btn red" data-a="formDel">Supprimer</button>' : ''}
     <button type="button" class="btn ghost" data-a="formClose">${onSave ? 'Annuler' : 'Fermer'}</button>${onSave ? `<button type="submit" class="btn green">${saveLabel || 'Enregistrer'}</button>` : ''}</div>`;
   formCb = { onSave, onDelete, fields };
@@ -510,7 +586,7 @@ function closeForm() { $('#ov').classList.remove('open'); formCb = null; }
 $('#sheet').addEventListener('submit', e => {
   e.preventDefault(); if (!formCb || !formCb.onSave) return;
   const v = {};
-  formCb.fields.forEach(f => { if (f.type === 'info') return; const i = e.target.elements[f.key]; v[f.key] = f.type === 'checkbox' ? i.checked : f.type === 'number' ? (i.value === '' ? 0 : Number(i.value)) : i.value.trim(); });
+  formCb.fields.forEach(f => { if (f.type === 'info') return; const i = e.target.elements[f.key]; v[f.key] = f.type === 'checkbox' ? i.checked : f.type === 'number' ? (i.value === '' ? 0 : Number(i.value)) : f.type === 'password' ? i.value : i.value.trim(); });
   const cb = formCb.onSave; if (cb(v) === false) return;
   closeForm(); render();
 });
@@ -696,11 +772,15 @@ const A = {
     else { if (D.remaining <= 0) return toast('La dette est déjà terminée 🎉'); const a = Math.min(D.monthly, D.remaining); D.remaining -= a; D.paid[mk] = a; toast('Bravo ! ' + money(a) + ' déduits.'); }
     flash = 'pay'; render();
   },
-  export() {
+  codeSet: codeForm,
+  codeOff() { if (confirm('Retirer le code ? Les données ne seront plus chiffrées.')) saveQ.then(() => { ckey = null; cmeta = null; save(); render(); toast('Code retiré'); }); },
+  lockNow() { saveQ.then(() => location.reload()); },
+  async export() {
+    const txt = ckey ? await encrypt(JSON.stringify(S)) : JSON.stringify(S, null, 2);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }));
+    a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
     a.download = 'tableau-de-bord-' + today() + '.json'; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('Sauvegarde téléchargée');
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast(ckey ? 'Sauvegarde chiffrée téléchargée' : 'Sauvegarde téléchargée');
   },
   import() { $('#file').value = ''; $('#file').click(); },
   clearEx() {
@@ -727,13 +807,18 @@ document.addEventListener('change', e => {
 $('#file').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = () => {
-    try {
-      const d = JSON.parse(r.result);
-      if (!d || !Array.isArray(d.tasks) || !Array.isArray(d.habits)) throw 0;
-      if (!confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) return;
-      S = Object.assign(seed0(), d); fixGardes(); rollover(); render(); toast('Données restaurées');
-    } catch (x) { toast('Ce fichier n\'est pas une sauvegarde valide.'); }
+  const apply = d => {
+    if (!d || !Array.isArray(d.tasks) || !Array.isArray(d.habits)) return toast('Ce fichier n\'est pas une sauvegarde valide.');
+    if (!confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) return;
+    load(d); rollover(); render(); toast('Données restaurées');
+  };
+  r.onload = async () => {
+    let d; try { d = JSON.parse(r.result); } catch (x) { return toast('Ce fichier n\'est pas une sauvegarde valide.'); }
+    if (!d || !d.enc) return apply(d);
+    if (!canLock) return toast('Sauvegarde chiffrée : ouvre la page en ligne (https).');
+    if (ckey) { try { return apply(await decrypt(d, ckey)); } catch (x) {} }
+    openForm({ title: 'Sauvegarde chiffrée', saveLabel: 'Ouvrir', fields: [{ key: 'code', label: 'Code utilisé pour cette sauvegarde', type: 'password' }],
+      onSave: v => { deriveKey(v.code, d.salt, d.iter).then(k => decrypt(d, k)).then(apply, () => toast('Code incorrect.')); } });
   };
   r.readAsText(f);
 });
@@ -755,8 +840,7 @@ function getPos() {
 function showWx(w, stale) {
   const i = wxInfo(w.code), r = n => (n > 0 ? '+' : '') + Math.round(n) + '°';
   $('#weather').innerHTML = `<div class="ico">${i[0]}</div><div style="flex:1"><div class="temp">${r(w.t)} <span class="sub">ressenti ${r(w.f)}</span></div>
-    <div class="sub">${esc(w.place || 'Krasnoyarsk')} · ${i[1]}${stale ? ' · mesure de ' + new Date(w.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
-    <a class="sub" style="text-decoration:underline" lang="ru" target="_blank" rel="noopener" href="https://yandex.ru/pogoda/?lat=${encodeURIComponent(w.lat || 56.01)}&lon=${encodeURIComponent(w.lon || 92.87)}">Яндекс Погода ↗</a></div>
+    <div class="sub">${esc(w.place || 'Krasnoyarsk')} · ${i[1]}${stale ? ' · mesure de ' + new Date(w.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></div>
     ${stale ? '<button type="button" class="ib" data-a="meteo" aria-label="Réessayer">↻</button>' : ''}${geoBtn()}`;
 }
 async function weather(force) {
@@ -776,7 +860,7 @@ async function weather(force) {
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,apparent_temperature,weather_code&timezone=auto', { signal: ctl.signal });
     clearTimeout(to); if (!res.ok) throw 0;
-    const c = (await res.json()).current, w = { t: c.temperature_2m, f: c.apparent_temperature, code: c.weather_code, at: Date.now(), place, geo: place !== 'Krasnoyarsk', lat, lon };
+    const c = (await res.json()).current, w = { t: c.temperature_2m, f: c.apparent_temperature, code: c.weather_code, at: Date.now(), place, geo: place !== 'Krasnoyarsk' };
     if (typeof w.t !== 'number') throw 0;
     if (w.geo === geoOn()) { try { localStorage.setItem(WKEY, JSON.stringify(w)); } catch (e) {} }
     showWx(w, false);
@@ -787,10 +871,20 @@ async function weather(force) {
 }
 
 /* ============ Démarrage ============ */
-load(); rollover(); wk = mondayOf(today()); let lastDay = today(); render(); weather();
-if (!S.name) nameForm();
+let lastDay = today(), hiddenAt = 0;
+function start() {
+  rollover(); wk = mondayOf(today()); lastDay = today(); render(); weather();
+  document.body.classList.remove('locked');
+  if (!S.name) nameForm();
+}
+(() => {
+  let raw = null; try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (raw && raw.enc) showLock(raw); else { load(raw); start(); }
+})();
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return;
+  if (!S) return;
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (ckey && hiddenAt && Date.now() - hiddenAt > 120e3) return saveQ.then(() => location.reload()); // verrouillage automatique
   if (today() !== lastDay) { lastDay = today(); rollover(); wk = mondayOf(lastDay); render(); }
   weather();
 });
