@@ -8,6 +8,16 @@ subprocess.run(['pandoc',src,'-f','gfm','-o',f],check=True)
 d=Document(f)
 for sec in d.sections:
     sec.left_margin=sec.right_margin=Cm(1.8); sec.top_margin=sec.bottom_margin=Cm(1.8)
+def setfont(rpr,name='Arial'):
+    rf=rpr.find(qn('w:rFonts'))
+    if rf is None: rf=OxmlElement('w:rFonts'); rpr.insert(0,rf)
+    for a in ('w:ascii','w:hAnsi','w:cs','w:eastAsia'): rf.set(qn(a),name)
+    for a in ('w:asciiTheme','w:hAnsiTheme','w:cstheme','w:eastAsiaTheme'):
+        if rf.get(qn(a)) is not None: del rf.attrib[qn(a)]
+setfont(d.styles.element.find(qn('w:docDefaults')).find(qn('w:rPrDefault')).find(qn('w:rPr')))
+for s in d.styles:
+    try: setfont(s.element.get_or_add_rPr())
+    except Exception: pass
 for t in d.tables:
     b=OxmlElement('w:tblBorders')
     for e in ('top','left','bottom','right','insideH','insideV'):
