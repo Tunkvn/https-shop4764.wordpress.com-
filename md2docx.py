@@ -4,7 +4,8 @@ from docx.shared import Pt, Cm
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 src=sys.argv[1]; f=src[:-3]+'.docx'
-subprocess.run(['pandoc',src,'-f','gfm','-o',f],check=True)
+fmt=sys.argv[2] if len(sys.argv)>2 else 'gfm'
+subprocess.run(['pandoc',src,'-f',fmt,'-o',f],check=True)
 d=Document(f)
 for sec in d.sections:
     sec.left_margin=sec.right_margin=Cm(1.8); sec.top_margin=sec.bottom_margin=Cm(1.8)
